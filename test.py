@@ -1,5 +1,7 @@
 from dynamixel_sdk import *
 
+#test
+
 portHandler = PortHandler("/dev/ttyUSB0")
 packetHandler = PacketHandler(2.0)
 
