@@ -2,7 +2,8 @@ from dynamixel_sdk import *
 
 #test
 
-portHandler = PortHandler("/dev/ttyUSB0")
+#portHandler = PortHandler("/dev/ttyUSB0") linux
+#portHandler = PortHandler("COM5") Windows
 packetHandler = PacketHandler(2.0)
 
 mode_adresse = 11
