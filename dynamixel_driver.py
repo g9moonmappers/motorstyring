@@ -1,16 +1,20 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import JointState
+from std_srvs.srv import Trigger
 from dynamixel_sdk import *
 
 DEVICE = '/dev/ttyUSB0'
 BAUDRATE = 57600
-LEFT_ID = 1
-RIGHT_ID = 2
+
+RIGHT_IDS = [1, 3, 5]
+LEFT_IDS = [2, 4, 6]
 
 MODE_ADDR = 11
 TORQUE_ADDR = 64
 VELOCITY_ADDR = 104
+PRESENT_POSITION_ADDR = 132
 VELOCITY_MODE = 1
 MAX_VELOCITY = 460
 
@@ -26,58 +30,78 @@ class DynamixelDriver(Node):
             return
         self.port.setBaudRate(BAUDRATE)
         
-        # Set velocity mode
-        self.packet.write1ByteTxRx(self.port, LEFT_ID, MODE_ADDR, VELOCITY_MODE)
-        self.packet.write1ByteTxRx(self.port, RIGHT_ID, MODE_ADDR, VELOCITY_MODE)
-        
-        # Enable torque
-        self.packet.write1ByteTxRx(self.port, LEFT_ID, TORQUE_ADDR, 1)
-        self.packet.write1ByteTxRx(self.port, RIGHT_ID, TORQUE_ADDR, 1)
-        
+        # Set velocity mode and enable torque for all motors
+        for motor_id in RIGHT_IDS + LEFT_IDS:
+            self.packet.write1ByteTxRx(self.port, motor_id, MODE_ADDR, VELOCITY_MODE)
+            self.packet.write1ByteTxRx(self.port, motor_id, TORQUE_ADDR, 1)
+            self.get_logger().info(f'Motor {motor_id} ready')
+
+        # Subscriber for cmd_vel
         self.subscription = self.create_subscription(
-            Twist,
-            '/cmd_vel',
-            self.cmd_vel_callback,
-            10)
+            Twist, '/cmd_vel', self.cmd_vel_callback, 10)
+
+        # Publisher for joint states
+        self.state_pub = self.create_publisher(JointState, '/dynamixel_state', 10)
+        self.create_timer(0.1, self.publish_state)
+
+        # Service for wheel_command
+        self.wheel_srv = self.create_service(
+            Trigger, '/wheel_command', self.wheel_command_callback)
+
+        self.left_vel = 0
+        self.right_vel = 0
         
         self.get_logger().info('Dynamixel driver started!')
+
+    def publish_state(self):
+        msg = JointState()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.name = ['right_1', 'right_3', 'right_5', 'left_2', 'left_4', 'left_6']
+
+        velocities = []
+        positions = []
+        for motor_id in RIGHT_IDS + LEFT_IDS:
+            vel, _, _ = self.packet.read4ByteTxRx(self.port, motor_id, VELOCITY_ADDR)
+            pos, _, _ = self.packet.read4ByteTxRx(self.port, motor_id, PRESENT_POSITION_ADDR)
+            velocities.append(float(vel))
+            positions.append(float(pos))
+
+        msg.velocity = velocities
+        msg.position = positions
+        self.state_pub.publish(msg)
+
+    def wheel_command_callback(self, request, response):
+        self.set_velocity_all(self.right_vel, self.left_vel)
+        response.success = True
+        response.message = f'Right: {self.right_vel} Left: {self.left_vel}'
+        return response
 
     def cmd_vel_callback(self, msg):
         linear = msg.linear.x
         angular = msg.angular.z
 
-        # Convert to left/right velocities
         left_vel = linear - angular
         right_vel = linear + angular
 
         # Scale to motor range
-        left_raw = int(left_vel * MAX_VELOCITY)
-        right_raw = int(right_vel * MAX_VELOCITY)
+        self.left_vel = max(-MAX_VELOCITY, min(MAX_VELOCITY, int(left_vel * MAX_VELOCITY)))
+        self.right_vel = max(-MAX_VELOCITY, min(MAX_VELOCITY, int(right_vel * MAX_VELOCITY)))
 
-        # Clamp to valid range
-        left_raw = max(-MAX_VELOCITY, min(MAX_VELOCITY, left_raw))
-        right_raw = max(-MAX_VELOCITY, min(MAX_VELOCITY, right_raw))
+        self.set_velocity_all(self.right_vel, self.left_vel)
+        self.get_logger().info(f'Right: {self.right_vel} Left: {self.left_vel}')
 
-        self.set_velocity(LEFT_ID, left_raw)
-        self.set_velocity(RIGHT_ID, right_raw)
-
-        self.get_logger().info(f'Left: {left_raw} Right: {right_raw}')
-
-    def set_velocity(self, motor_id, velocity):
-        data = [
-            DXL_LOBYTE(DXL_LOWORD(velocity)),
-            DXL_HIBYTE(DXL_LOWORD(velocity)),
-            DXL_LOBYTE(DXL_HIWORD(velocity)),
-            DXL_HIBYTE(DXL_HIWORD(velocity))
-        ]
-        self.packet.write4ByteTxRx(self.port, motor_id, VELOCITY_ADDR, velocity & 0xFFFFFFFF)
+    def set_velocity_all(self, right_vel, left_vel):
+        # Right side is reversed so negate it
+        for motor_id in RIGHT_IDS:
+            self.packet.write4ByteTxRx(self.port, motor_id, VELOCITY_ADDR, (-right_vel) & 0xFFFFFFFF)
+        for motor_id in LEFT_IDS:
+            self.packet.write4ByteTxRx(self.port, motor_id, VELOCITY_ADDR, left_vel & 0xFFFFFFFF)
 
     def destroy_node(self):
-        # Stop motors and disable torque on shutdown
-        self.set_velocity(LEFT_ID, 0)
-        self.set_velocity(RIGHT_ID, 0)
-        self.packet.write1ByteTxRx(self.port, LEFT_ID, TORQUE_ADDR, 0)
-        self.packet.write1ByteTxRx(self.port, RIGHT_ID, TORQUE_ADDR, 0)
+        # Stop all motors and disable torque on shutdown
+        for motor_id in RIGHT_IDS + LEFT_IDS:
+            self.packet.write4ByteTxRx(self.port, motor_id, VELOCITY_ADDR, 0)
+            self.packet.write1ByteTxRx(self.port, motor_id, TORQUE_ADDR, 0)
         self.port.closePort()
         super().destroy_node()
 
