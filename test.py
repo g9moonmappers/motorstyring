@@ -106,7 +106,7 @@ portHandler.closePort()
 from dynamixel_sdk import *
 import time
 
-portHandler = PortHandler("COM5")
+portHandler = PortHandler("COM12")
 packetHandler = PacketHandler(2.0)
 
 mode_adresse = 11
@@ -116,6 +116,10 @@ present_velocity_adresse = 128
 
 dxl_id1 = 1
 dxl_id2 = 2
+dxl_id3 = 3
+dxl_id4 = 4
+dxl_id5 = 5
+dxl_id6 = 6
 
 T_ON = 1
 T_OFF = 0
@@ -139,12 +143,27 @@ else:
 
 packetHandler.write1ByteTxRx(portHandler, dxl_id1, mode_adresse, velocity_mode)
 packetHandler.write1ByteTxRx(portHandler, dxl_id2, mode_adresse, velocity_mode)
+packetHandler.write1ByteTxRx(portHandler, dxl_id3, mode_adresse, velocity_mode)
+packetHandler.write1ByteTxRx(portHandler, dxl_id4, mode_adresse, velocity_mode)
+packetHandler.write1ByteTxRx(portHandler, dxl_id5, mode_adresse, velocity_mode)
+packetHandler.write1ByteTxRx(portHandler, dxl_id6, mode_adresse, velocity_mode)
+
 
 packetHandler.write1ByteTxRx(portHandler, dxl_id1, torque_on_address, T_ON)
 packetHandler.write1ByteTxRx(portHandler, dxl_id2, torque_on_address, T_ON)
+packetHandler.write1ByteTxRx(portHandler, dxl_id3, torque_on_address, T_ON)
+packetHandler.write1ByteTxRx(portHandler, dxl_id4, torque_on_address, T_ON)
+packetHandler.write1ByteTxRx(portHandler, dxl_id5, torque_on_address, T_ON)
+packetHandler.write1ByteTxRx(portHandler, dxl_id6, torque_on_address, T_ON)
+
 
 dxl_addparam_result = groupBulkRead.addParam(dxl_id1, present_velocity_adresse, 4)
 dxl_addparam_result = groupBulkRead.addParam(dxl_id2, present_velocity_adresse, 4)
+dxl_addparam_result = groupBulkRead.addParam(dxl_id3, present_velocity_adresse, 4)
+dxl_addparam_result = groupBulkRead.addParam(dxl_id4, present_velocity_adresse, 4)
+dxl_addparam_result = groupBulkRead.addParam(dxl_id5, present_velocity_adresse, 4)
+dxl_addparam_result = groupBulkRead.addParam(dxl_id6, present_velocity_adresse, 4)
+
 
 while True:
     try:
@@ -190,14 +209,30 @@ while True:
     ]
 
 
-    dxl_addparam_result = groupBulkWrite.addParam(dxl_id1, goal_velocity_adresse, 4, param_goal_velocity_H)
+    dxl_addparam_result = groupBulkWrite.addParam(dxl_id1, goal_velocity_adresse, 4, param_goal_velocity_V)
     if not dxl_addparam_result:
         print("[ID:%03d] groupBulkWrite addparam failed" % dxl_id1)
         exit()
+    dxl_addparam_result = groupBulkWrite.addParam(dxl_id3, goal_velocity_adresse, 4, param_goal_velocity_V)
+    if not dxl_addparam_result:
+        print("[ID:%03d] groupBulkWrite addparam failed" % dxl_id3)
+        exit()
+    dxl_addparam_result = groupBulkWrite.addParam(dxl_id5, goal_velocity_adresse, 4, param_goal_velocity_V)
+    if not dxl_addparam_result:
+        print("[ID:%03d] groupBulkWrite addparam failed" % dxl_id5)
+        exit()
 
-    dxl_addparam_result = groupBulkWrite.addParam(dxl_id2, goal_velocity_adresse, 4, param_goal_velocity_V)
+    dxl_addparam_result = groupBulkWrite.addParam(dxl_id2, goal_velocity_adresse, 4, param_goal_velocity_H)
     if not dxl_addparam_result:
         print("[ID:%03d] groupBulkWrite addparam failed" % dxl_id2)
+        exit()
+    dxl_addparam_result = groupBulkWrite.addParam(dxl_id4, goal_velocity_adresse, 4, param_goal_velocity_H)
+    if not dxl_addparam_result:
+        print("[ID:%03d] groupBulkWrite addparam failed" % dxl_id4)
+        exit()
+    dxl_addparam_result = groupBulkWrite.addParam(dxl_id6, goal_velocity_adresse, 4, param_goal_velocity_H)
+    if not dxl_addparam_result:
+        print("[ID:%03d] groupBulkWrite addparam failed" % dxl_id16)
         exit()
 
     groupBulkWrite.txPacket()
@@ -207,9 +242,23 @@ while True:
         groupBulkRead.txRxPacket()
         dxl1_present_velocity = groupBulkRead.getData(dxl_id1, present_velocity_adresse, 4)
         dxl2_present_velocity = groupBulkRead.getData(dxl_id2, present_velocity_adresse, 4)
+        dxl1_present_velocity = groupBulkRead.getData(dxl_id3, present_velocity_adresse, 4)
+        dxl2_present_velocity = groupBulkRead.getData(dxl_id4, present_velocity_adresse, 4)
+        dxl1_present_velocity = groupBulkRead.getData(dxl_id5, present_velocity_adresse, 4)
+        dxl2_present_velocity = groupBulkRead.getData(dxl_id6, present_velocity_adresse, 4)
+        
+        
         if (target_velocity1 < 0) and (target_velocity2 < 0):
             print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity - 4294967295, dxl_id2, dxl2_present_velocity - 4294967295))
             if (abs(target_velocity1 - dxl1_present_velocity) - 4294967295 == 0) and (abs(target_velocity2 - dxl2_present_velocity) - 4294967295 == 0):
+                break
+        elif (target_velocity1 < 0) and (target_velocity2 > 0):
+            print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity - 4294967295, dxl_id2, dxl2_present_velocity))
+            if (abs(target_velocity1 - dxl1_present_velocity) - 4294967295 == 0) and (abs(target_velocity2 - dxl2_present_velocity) == 0):
+                break
+        elif (target_velocity1 > 0) and (target_velocity2 < 0):
+            print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity, dxl_id2, dxl2_present_velocity - 4294967295))
+            if (abs(target_velocity1 - dxl1_present_velocity) == 0) and (abs(target_velocity2 - dxl2_present_velocity) - 4294967295 == 0):
                 break
         else:
             print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity, dxl_id2, dxl2_present_velocity))
@@ -218,4 +267,8 @@ while True:
         
 packetHandler.write1ByteTxRx(portHandler, dxl_id1, torque_on_address, T_OFF)
 packetHandler.write1ByteTxRx(portHandler, dxl_id2, torque_on_address, T_OFF)
+packetHandler.write1ByteTxRx(portHandler, dxl_id3, torque_on_address, T_OFF)
+packetHandler.write1ByteTxRx(portHandler, dxl_id4, torque_on_address, T_OFF)
+packetHandler.write1ByteTxRx(portHandler, dxl_id5, torque_on_address, T_OFF)
+packetHandler.write1ByteTxRx(portHandler, dxl_id6, torque_on_address, T_OFF)
 portHandler.closePort()
