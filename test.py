@@ -167,7 +167,7 @@ dxl_addparam_result = groupBulkRead.addParam(dxl_id6, present_velocity_adresse, 
 
 while True:
     try:
-        target_velocity1 = int(input("Enter target velocity (-460 ~ 460, 0 to exit): "))
+        target_velocity1 = - int(input("Enter target velocity (-460 ~ 460, 0 to exit): "))
     except ValueError:
         print("Please enter an integer.")
         continue
@@ -253,12 +253,12 @@ while True:
             if (abs(target_velocity1 - dxl1_present_velocity) - 4294967295 == 0) and (abs(target_velocity2 - dxl2_present_velocity) - 4294967295 == 0):
                 break
         elif (target_velocity1 < 0) and (target_velocity2 > 0):
-            print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity - 4294967295, dxl_id2, dxl2_present_velocity))
-            if (abs(target_velocity1 - dxl1_present_velocity) - 4294967295 == 0) and (abs(target_velocity2 - dxl2_present_velocity) == 0):
+            print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity, dxl_id2,  abs(dxl2_present_velocity - 4294967295)))
+            if (abs(target_velocity1 + dxl1_present_velocity) == 0) and (abs(target_velocity2 - 4294967295 + dxl2_present_velocity) == 0):
                 break
         elif (target_velocity1 > 0) and (target_velocity2 < 0):
-            print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity, dxl_id2, dxl2_present_velocity - 4294967295))
-            if (abs(target_velocity1 - dxl1_present_velocity) == 0) and (abs(target_velocity2 - dxl2_present_velocity) - 4294967295 == 0):
+            print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity - 4294967295, dxl_id2, dxl2_present_velocity))
+            if (abs(target_velocity1 - 4294967295 + dxl1_present_velocity) == 0) and (abs(target_velocity2 + dxl2_present_velocity) == 0):
                 break
         else:
             print("[ID:%03d] velocity motor 1 : %d \t [ID:%03d] velocity motor 2: %d" % (dxl_id1, dxl1_present_velocity, dxl_id2, dxl2_present_velocity))
@@ -272,3 +272,5 @@ packetHandler.write1ByteTxRx(portHandler, dxl_id4, torque_on_address, T_OFF)
 packetHandler.write1ByteTxRx(portHandler, dxl_id5, torque_on_address, T_OFF)
 packetHandler.write1ByteTxRx(portHandler, dxl_id6, torque_on_address, T_OFF)
 portHandler.closePort()
+
+#%%
